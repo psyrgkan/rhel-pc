@@ -36,12 +36,16 @@ experiments/
   exp4_hpc_prototype.py      # HPC supervised: exactness, locality, training
   exp5_unsupervised.py       # benefit #2: energy-based unsupervised learning
   exp6_locality.py           # benefit #1: local rule, no weight transport
+  exp7_nudging_knob.py       # Fig. 5: centered O(eps^2) vs one-sided O(eps) bias
   make_concept_figure.py     # Fig. 1 schematic
-tests/test_gradients.py      # time-reversal symmetry + Thm 3.2/3.3 checks
+tests/                       # time-reversal symmetry, Thm 3.2/3.3, PC locality
 docs/
   paper_notes.md             # detailed paper summary
   pc_proposal.md             # the predictive-coding proposal
   replication_report.md      # results, deviations, what matched
+paper/
+  main.tex                   # the submission-ready paper (NeurIPS format)
+  reviewer_critique.md       # adversarial self-review of the paper
 figures/ results/            # generated artifacts
 ```
 

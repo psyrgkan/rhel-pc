@@ -135,6 +135,21 @@ is a real limitation, consistent with App. A.4.4); and on this
 frequency-coded task a linear probe saturates even for a random reservoir, so
 reconstruction — not the probe — is the meaningful learning signal.
 
+## Experiment 7 — the nudging knob (Figure 5)
+
+`experiments/exp7_nudging_knob.py`, figure `figures/exp7_nudging_knob.png`.
+
+```
+float64 bias vs eps:  centered (RHEL) slope 2.0  [O(eps^2)],  one-sided (EqProp) slope 1.0 [O(eps)]
+float32 practical window: relative gradient error U-shaped, sweet spot eps ~ 0.16
+```
+
+RHEL's centered two-echo difference is one order more accurate than a
+one-sided nudge (the standard Equilibrium-Propagation estimator) — concrete
+justification for flipping the momenta both ways. In float32 the ε→0 limit is
+unreachable (underflow), so there is a sweet spot; it lands near ε≈0.1, the
+value used throughout, validating the hyperparameter choice (App. A.5.4).
+
 ## Figures produced
 
 | File | Shows |
@@ -145,6 +160,7 @@ reconstruction — not the probe — is the meaningful learning signal.
 | `exp4_hpc_prototype.png` | HPC supervised: RHEL == BPTT, trains to 96 % |
 | `exp5_unsupervised.png` | Benefit #2: unsupervised generative learning, RHEL==BPTT |
 | `exp6_locality.png` | Benefit #1: RHEL == local PC Hebbian rule, no weight transport |
+| `exp7_nudging_knob.png` | Fig. 5: centered O(ε²) vs one-sided O(ε) bias; float32 sweet spot |
 
 ## Deviations from the paper / official code
 

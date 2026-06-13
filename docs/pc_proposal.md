@@ -188,7 +188,7 @@ What a submission needs, and what already exists in this repo:
 | 2 | Correctness: RHEL == BPTT gradients, per layer (cosine/ratio) | done (`exp4`, `exp2`) |
 | 3 | **Locality / no weight transport**: per-synapse `error×activity` match + feedback-alignment control | done (`exp6_locality.png`) |
 | 4 | **Energy-based unsupervised learning**: reconstruction trained≪random, RHEL==BPTT | done (`exp5_unsupervised.png`) |
-| 5 | The ε / inference-depth knob: interpolating exact-BPTT ↔ PC-equilibrium | **to build** |
+| 5 | The ε knob: centered O(ε²) vs one-sided O(ε) bias + float32 sweet spot | done (`exp7_nudging_knob.png`) |
 | 6 | A "PC beats BPTT" result (continual learning / sample efficiency) | **to build** |
 | 7 | Scaling table on standard benchmarks (sMNIST/sCIFAR, UEA, PPG) | needs data access |
 
