@@ -1,0 +1,39 @@
+(1) exactness: cos(RHEL, BPTT) = 1.000000000000, norm ratio = 1.00000000
+(2) locality: Delta W_0 Hebbian vs generic-RHEL max rel diff = 8.27e-09
+(2) locality: Delta W_1 Hebbian vs generic-RHEL max rel diff = 4.50e-09
+(2) locality: Delta W_2 Hebbian vs generic-RHEL max rel diff = 4.43e-09
+  [HPC/BPTT/seed0] step 100 val 0.303
+  [HPC/BPTT/seed0] step 200 val 0.393
+  [HPC/BPTT/seed0] step 300 val 0.393
+  [HPC/BPTT/seed0] step 400 val 0.463
+  [HPC/BPTT/seed0] step 500 val 0.540
+  [HPC/BPTT/seed0] step 600 val 0.787
+  [HPC/BPTT/seed0] step 700 val 0.943
+  [HPC/BPTT/seed0] step 800 val 0.977
+  [HPC/BPTT/seed1] step 100 val 0.347
+  [HPC/BPTT/seed1] step 200 val 0.370
+  [HPC/BPTT/seed1] step 300 val 0.337
+  [HPC/BPTT/seed1] step 400 val 0.410
+  [HPC/BPTT/seed1] step 500 val 0.513
+  [HPC/BPTT/seed1] step 600 val 0.733
+  [HPC/BPTT/seed1] step 700 val 0.940
+  [HPC/BPTT/seed1] step 800 val 0.967
+== HPC BPTT: test acc 96.3 +/- 1.7 %
+  [HPC/RHEL/seed0] step 100 val 0.303
+  [HPC/RHEL/seed0] step 200 val 0.393
+  [HPC/RHEL/seed0] step 300 val 0.393
+  [HPC/RHEL/seed0] step 400 val 0.463
+  [HPC/RHEL/seed0] step 500 val 0.537
+  [HPC/RHEL/seed0] step 600 val 0.790
+  [HPC/RHEL/seed0] step 700 val 0.947
+  [HPC/RHEL/seed0] step 800 val 0.973
+  [HPC/RHEL/seed1] step 100 val 0.347
+  [HPC/RHEL/seed1] step 200 val 0.373
+  [HPC/RHEL/seed1] step 300 val 0.340
+  [HPC/RHEL/seed1] step 400 val 0.413
+  [HPC/RHEL/seed1] step 500 val 0.507
+  [HPC/RHEL/seed1] step 600 val 0.720
+  [HPC/RHEL/seed1] step 700 val 0.917
+  [HPC/RHEL/seed1] step 800 val 0.953
+== HPC RHEL: test acc 95.8 +/- 2.2 %
+saved figures/exp4_hpc_prototype.png
