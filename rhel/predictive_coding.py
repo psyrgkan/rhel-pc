@@ -38,7 +38,7 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 
-from .hamiltonian import HamiltonianSpec, make_hru
+from .hamiltonian import HamiltonianSpec, hru_scan, make_hru
 
 
 def pc_errors(phi, u, p, levels, width):
@@ -91,6 +91,7 @@ class HPCClassifier:
     def __init__(self, levels, width, delta=0.1, alpha=0.1,
                  learning_algorithm="BPTT", epsilon=0.0):
         self.levels, self.width = levels, width
+        self.delta = delta
         self.epsilon = epsilon
         self.spec = make_hpc_spec(levels, width, delta, alpha)
         self.hru_apply = make_hru(self.spec, levels * width, learning_algorithm)
@@ -104,3 +105,164 @@ class HPCClassifier:
         feats = jnp.tanh(phis @ params["read_w"].T + params["read_b"])  # (K, feat)
         pooled = jnp.mean(feats, axis=0)
         return pooled @ params["dec_w"].T + params["dec_b"]
+
+
+# ---------------------------------------------------------------------------
+# Locality of the RHEL update (benefit #1)
+# ---------------------------------------------------------------------------
+#
+# For the PC Hamiltonian, the RHEL parameter estimator
+#   Delta W_l = -(delta/2 eps) [ grad_{W_l} F(echo+) - grad_{W_l} F(echo-) ]
+# decomposes EXACTLY into the predictive-coding Hebbian rule: at each synapse
+# W_l[i,j] the update is the contrast, over the two echo trajectories, of
+#   (prediction error at the synapse's output) x (activity at its input).
+# It uses only quantities local to the synapse, the SAME weights W as the
+# forward pass (no transpose / no separate backward weights), and only
+# forward simulations of the dynamics.
+
+
+def pc_local_hebbian_update(model, params, u_seq, g_seq, eps):
+    """Hand-written PC weight update from the two echo trajectories.
+
+    Returns a list of dW_l, one per generative weight, computed purely from
+    local (error x presynaptic-activity) outer products evaluated at the
+    leapfrog half-step positions of the +eps and -eps echoes. Equals the
+    generic RHEL/BPTT gradient dL/dW_l (verified in exp6).
+    """
+    levels, width = model.levels, model.width
+    spec, p = model.spec, params["pc"]
+    z0 = jnp.zeros(levels * width, dtype=u_seq.dtype)
+    (phiK, piK), _ = hru_scan(spec, p, z0, z0, u_seq)
+
+    g_rev = g_seq[::-1]
+    n0 = g_rev[0]
+    n_seq = jnp.concatenate([g_rev[1:], jnp.zeros_like(g_rev[:1])])
+    u_rev = u_seq[::-1]
+
+    def echo_half_positions(sign):
+        e = sign * eps
+        _, traj = hru_scan(spec, p, phiK, -piK + e * n0, u_rev, n_seq, e)
+        return traj[2]  # phi_{k+1/3}
+
+    def hebb(phi13s):
+        def per_step(phi13, u):
+            errs, z = pc_errors(phi13, u, p, levels, width)
+            # ΔW_l ~ error_at_output ⊗ activity_at_input  (purely local)
+            return [jnp.outer(errs[l], jnp.tanh(z[l])) for l in range(levels)]
+        terms = jax.vmap(per_step)(phi13s, u_rev)
+        return [jnp.sum(t, axis=0) for t in terms]
+
+    h_p, h_m = hebb(echo_half_positions(+1.0)), hebb(echo_half_positions(-1.0))
+    # delta is folded into the Hamiltonian (App. A.4.6); restore the scalar.
+    return [model.delta / (2 * eps) * (a - b) for a, b in zip(h_p, h_m)]
+
+
+# ---------------------------------------------------------------------------
+# Unsupervised / energy-based learning (benefit #2)
+# ---------------------------------------------------------------------------
+#
+# Predictive coding is a generative model: its free energy F is a genuine
+# objective, so HPC can learn *without labels* by minimizing the sensory
+# prediction error -- something a task-driven SSM cannot do. The learning
+# signal is still local (error x activity, benefit #1); here the relevant
+# error is the bottom-level reconstruction error e_0 = u - W0 f(z_0).
+
+
+def hpc_reconstruction_loss(model, params, u_batch, grad_scaler=1.0):
+    """Time-averaged sensory prediction error (the generative free-energy
+    term that drives unsupervised learning).  No labels, no decoder."""
+
+    def per_sample(u):
+        z = model.latents(params, u)            # (K, L, width), via inference
+        z0 = z[:, 0, :]                          # bottom latent trajectory
+        pred = jnp.tanh(z0) @ params["pc"]["W"][0].T   # top-down prediction of u
+        return jnp.mean(jnp.sum((u - pred) ** 2, axis=-1))
+
+    return jnp.mean(jax.vmap(per_sample)(u_batch)) * grad_scaler
+
+
+def hpc_reconstruct(model, params, u_seq):
+    """Top-down reconstruction of the input sequence: W0 f(z_0(k))."""
+    z = model.latents(params, u_seq)            # (K, L, width)
+    return jnp.tanh(z[:, 0, :]) @ params["pc"]["W"][0].T   # (K, data_dim)
+
+
+def hpc_reconstruction_mse(model, params, u_batch):
+    """Per-element held-out reconstruction MSE (no grad scaling)."""
+    def per_sample(u):
+        pred = hpc_reconstruct(model, params, u)
+        return jnp.mean((u - pred) ** 2)
+    return float(jnp.mean(jax.vmap(per_sample)(u_batch)))
+
+
+def hpc_representation(model, params, u_seq):
+    """Unsupervised representation for probing.
+
+    Classes here differ by oscillation frequency, which lives in the *second
+    moment* of the latent activity (a zero-mean oscillation has no first
+    moment). We therefore pool the latent power over time.
+    """
+    z = model.latents(params, u_seq)            # (K, L, width)
+    return jnp.mean(z ** 2, axis=0).reshape(-1)  # (L*width,)
+
+
+# ---------------------------------------------------------------------------
+# Baseline: classic dissipative predictive coding (Rao-Ballard / Whittington
+# & Bogacz).  First-order relaxation of the SAME free energy to equilibrium,
+# then a local Hebbian weight update.  This is "the other network" -- a real
+# PC competitor that is dissipative and relaxational rather than Hamiltonian.
+# ---------------------------------------------------------------------------
+
+
+class DissipativePC:
+    """Static (non-temporal) predictive coding over a pooled input.
+
+    Inference: z <- z - eta * dF/dz for `infer_steps` (gradient relaxation).
+    Learning:  dW_l ~ e_l f(z_{l+1})^T at the relaxed state (local Hebbian).
+    Trained unsupervised by minimizing the same sensory error.  We pool the
+    input over time so the comparison isolates *representation learning*,
+    not temporal modelling.
+    """
+
+    def __init__(self, levels, width, alpha=0.1, eta=0.1, infer_steps=30):
+        self.levels, self.width = levels, width
+        self.alpha, self.eta, self.infer_steps = alpha, eta, infer_steps
+
+    def _free_energy(self, z_flat, u, Ws):
+        z = z_flat.reshape(self.levels, self.width)
+        e0 = u - Ws[0] @ jnp.tanh(z[0])
+        F = 0.5 * jnp.sum(e0**2)
+        for l in range(1, self.levels):
+            e = z[l - 1] - Ws[l] @ jnp.tanh(z[l])
+            F += 0.5 * jnp.sum(e**2)
+        return F + 0.5 * self.alpha * jnp.sum(z_flat**2)
+
+    def infer(self, params, u):
+        Ws = params["W"]
+        grad_z = jax.grad(self._free_energy, argnums=0)
+        z = jnp.zeros(self.levels * self.width, dtype=u.dtype)
+
+        def step(z, _):
+            return z - self.eta * grad_z(z, u, Ws), None
+
+        z, _ = jax.lax.scan(step, z, None, length=self.infer_steps)
+        return z.reshape(self.levels, self.width)
+
+    def representation(self, params, u_seq):
+        u = jnp.mean(u_seq, axis=0)              # pool input over time
+        return self.infer(params, u).reshape(-1)
+
+    def loss(self, params, u_batch):
+        def per_sample(u_seq):
+            u = jnp.mean(u_seq, axis=0)
+            z = self.infer(params, u)
+            return self._free_energy(z.reshape(-1), u, params["W"])
+        return jnp.mean(jax.vmap(per_sample)(u_batch))
+
+
+def init_dissipative_pc(key, levels, width, data_dim):
+    ks = jr.split(key, levels)
+    Ws = [jr.uniform(ks[0], (data_dim, width), minval=-1, maxval=1) / jnp.sqrt(width)]
+    Ws += [jr.uniform(k, (width, width), minval=-1, maxval=1) / jnp.sqrt(width)
+           for k in ks[1:levels]]
+    return {"W": Ws}

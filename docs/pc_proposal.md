@@ -100,27 +100,64 @@ so the entire PC hierarchy becomes a single **Hamiltonian Recurrent Unit**
 
 ## 3. What the prototype shows
 
-`experiments/exp4_hpc_prototype.py` builds a 3-level HPC network
-(`rhel/predictive_coding.py`) and checks three claims:
+`rhel/predictive_coding.py` implements HPC; four experiments back the two
+benefits we focus on (locality and energy-based unsupervised learning),
+plus the supervised sanity check. Figure 1 (`figures/concept_schematic.png`)
+is the mechanism diagram.
 
-1. **Exactness.** RHEL gradients through the HPC inference dynamics match
-   end-to-end BPTT: cosine similarity `1.000000000000`, norm ratio
-   `1.00000000` (float64, ε=1e-6).
-2. **Locality.** The hand-written contrastive-Hebbian update
-   `+(δ/2ε)[e f(z)ᵀ]_+^−` reproduces the generic RHEL gradient for every
-   weight matrix to within ~1e-9 (max relative difference). The update uses
-   only error × presynaptic-activity at each synapse.
-3. **Learning.** On a persistent-cue sequence classification task, an HPC
-   classifier trained by RHEL tracks one trained by BPTT throughout
-   optimization and reaches comparable test accuracy — **HPC BPTT
-   96.3 ± 1.7 %, HPC RHEL 95.8 ± 2.2 %** (2 seeds; chance 25 %), a 0.5-point
-   gap like the paper's own Table 1–2 margins (see `results/exp4_hpc.json`,
-   `figures/exp4_hpc_prototype.png`).
+**Supervised sanity (exp4).** A 3-level HPC classifier checks exactness and
+trains as well by RHEL as by BPTT — **HPC BPTT 96.3 ± 1.7 %, HPC RHEL
+95.8 ± 2.2 %** (chance 25 %), a 0.5-point gap like the paper's Table 1–2
+margins. (The supervised task uses a *persistent* cue: a non-dissipative
+system cannot forget injected noise — the paper's own caveat, App. A.4.4 —
+so the discriminative signal must persist across the sequence.)
 
-The persistent-cue task is deliberate: a non-dissipative system **cannot
-forget** injected noise (the paper's own caveat, App. A.4.4), so the
-discriminative signal must persist across the sequence. This is the single
-most important design constraint that HPC inherits from RHEL.
+### Benefit #1 — locality / no weight transport (exp6, Fig. `exp6_locality.png`)
+
+For the PC Hamiltonian the RHEL update decomposes *exactly* into the classic
+predictive-coding Hebbian rule. We verify, on a 3-level HPC, that the
+hand-written local update
+
+    ΔW_l = (δ/2ε) Σ_k [ e_l⁺(k) f(z_{l+1}⁺(k))ᵀ − e_l⁻(k) f(z_{l+1}⁻(k))ᵀ ]
+
+equals the generic autodiff RHEL gradient `dL/dW_l` at **every layer**
+(cosine **1.0**, max relative difference **~1e-8**), see panels (A)–(B). The
+update at synapse `W_l[i,j]` uses only the prediction error at its output
+and the presynaptic activity at its input — both physically available there.
+
+Crucially, RHEL's backward (echo) pass is the *same* forward dynamics run on
+the *same* weights `W`; it never forms `Wᵀ` or a separate error network.
+Panel (C) quantifies how much this matters: standard backprop's gradient
+*depends* on transported weights — replacing the backward weights with
+random ones (feedback-alignment control) misaligns the gradient to cosine
+**−0.24** — a dependence RHEL structurally avoids. This is the strongest
+"why PC" answer: HPC achieves temporal credit assignment with a fully local,
+weight-transport-free, forward-only rule, and it does so *exactly* (not
+approximately, as equilibrium PC does).
+
+### Benefit #2 — energy-based unsupervised learning (exp5, Fig. `exp5_unsupervised.png`)
+
+Because PC is generative, HPC can learn with **no labels** by minimizing its
+free energy (the sensory prediction error) — a task-driven SSM cannot. On a
+clean structured-waveform autoencoding task:
+
+- **Generative learning happens.** Held-out reconstruction MSE falls from
+  **0.182** (a random HPC reservoir) to **0.015** after unsupervised
+  training — 12× better than the reservoir and 25× better than predicting
+  the mean (panel A). Panel C shows a trained HPC reconstructing a held-out
+  waveform that the random reservoir cannot.
+- **The local rule matches global backprop.** The RHEL and BPTT
+  reconstruction-loss curves are **identical step-for-step** (panel B):
+  HPC's local, forward-only learning loses nothing against end-to-end
+  autodiff on the unsupervised objective.
+- **Caveat we surface honestly.** Conservative HPC needs a *weak* leak
+  (α small) and a large enough step for its latents to track the input;
+  with a strong leak it collapses to predicting the mean (non-relaxational
+  inference is a genuine limitation — see report). On this frequency task a
+  linear probe saturates at 100 % even for a *random* reservoir, so
+  reconstruction — not the probe — is the honest measure of unsupervised
+  learning. (A classic dissipative-PC baseline that time-pools its input
+  sits at chance on the probe because pooling destroys the oscillation.)
 
 ## 4. Honest limitations and how they shape the design
 
@@ -141,7 +178,31 @@ most important design constraint that HPC inherits from RHEL.
   float32 to avoid underflow of the ε-perturbation (App. A.5.4); the
   prototype uses it.
 
-## 5. Concrete next steps
+## 5. Figures for a paper-worthy result
+
+What a submission needs, and what already exists in this repo:
+
+| # | Figure | Status |
+|---|--------|--------|
+| 1 | Concept schematic: hierarchy + 3-pass RHEL + local update | done (`concept_schematic.png`) |
+| 2 | Correctness: RHEL == BPTT gradients, per layer (cosine/ratio) | done (`exp4`, `exp2`) |
+| 3 | **Locality / no weight transport**: per-synapse `error×activity` match + feedback-alignment control | done (`exp6_locality.png`) |
+| 4 | **Energy-based unsupervised learning**: reconstruction trained≪random, RHEL==BPTT | done (`exp5_unsupervised.png`) |
+| 5 | The ε / inference-depth knob: interpolating exact-BPTT ↔ PC-equilibrium | **to build** |
+| 6 | A "PC beats BPTT" result (continual learning / sample efficiency) | **to build** |
+| 7 | Scaling table on standard benchmarks (sMNIST/sCIFAR, UEA, PPG) | needs data access |
+
+Figures 1–4 establish the core thesis ("HPC makes RHEL's credit assignment a
+local, energy-based, weight-transport-free rule, matching backprop"). Figures
+5–6 are what would let the paper claim a *behavioural* advantage of PC, not
+just an implementational one; both require operating in the finite-nudge
+regime where HPC deliberately departs from BPTT (see the strategic fork in
+the project discussion). Theory the text still needs: a proposition stating
+the exact decomposition of the RHEL estimator into the local PC rule
+(formalizing exp6), and a characterization of the finite-ε estimator as a
+temporal Equilibrium-Propagation update.
+
+## 6. Concrete next steps
 
 1. **Deep / hierarchical temporal PC** via Alg. 1 chaining across several
    HPC blocks (input-gradient nudging between levels), benchmarked against

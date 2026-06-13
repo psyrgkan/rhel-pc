@@ -1,0 +1,14 @@
+{
+  "per_layer_cosine_local_vs_generic": [
+    1.0000000000000002,
+    0.9999999999999998,
+    0.9999999999999989
+  ],
+  "max_rel_diff": [
+    2.01342756895617e-08,
+    1.0120033953126439e-08,
+    1.1508399841889332e-08
+  ],
+  "backprop_random_feedback_cosine": -0.2391901444639888,
+  "note": "RHEL update == local PC Hebbian rule (cosine 1.0); backprop's gradient depends on transported weights (random feedback misaligns to cosine -0.24), a dependence RHEL avoids."
+}

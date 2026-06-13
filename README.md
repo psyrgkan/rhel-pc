@@ -26,13 +26,17 @@ Jacobian, no variance**, provably equal to BPTT (Theorem 3.2). See
 rhel/
   hamiltonian.py       # leapfrog HRU + RHEL custom-VJP (Alg. 1, Eq. 13-14)
   models.py            # linear & nonlinear HRUs, HSSM stack (App. A.4)
-  data.py              # synthetic long-range sequence task
+  data.py              # synthetic sequence tasks (classification, waveforms)
   predictive_coding.py # Hamiltonian Predictive Coding (the proposal)
+  eval.py              # frozen-feature linear probe
 experiments/
   exp1_toy_oscillators.py    # Fig. 2: RHEL == adjoint state method (Thm 3.1)
   exp2_gradient_comparison.py# Fig. 4: RHEL == BPTT grads + underflow (A.5.4)
   exp3_training.py           # Tables 1-2 proxy: RHEL vs BPTT training
-  exp4_hpc_prototype.py      # the PC proposal, demonstrated
+  exp4_hpc_prototype.py      # HPC supervised: exactness, locality, training
+  exp5_unsupervised.py       # benefit #2: energy-based unsupervised learning
+  exp6_locality.py           # benefit #1: local rule, no weight transport
+  make_concept_figure.py     # Fig. 1 schematic
 tests/test_gradients.py      # time-reversal symmetry + Thm 3.2/3.3 checks
 docs/
   paper_notes.md             # detailed paper summary
@@ -64,11 +68,16 @@ python experiments/exp4_hpc_prototype.py
   by γ≈1e4 restores near-perfect gradient alignment (exp2, panel B).
 - **Training parity**: RHEL tracks BPTT throughout optimization on linear
   and nonlinear HSSMs (exp3).
-- **The proposal — Hamiltonian Predictive Coding**: a PC hierarchy given
-  momenta becomes one HRU; RHEL's weight update *is* PC's local
-  error×activity Hebbian rule, contrasted over the two echoes, and equals
-  BPTT exactly (cosine `1.0`, locality match ~1e-9). See
-  [`docs/pc_proposal.md`](docs/pc_proposal.md).
+- **The proposal — Hamiltonian Predictive Coding** ([`docs/pc_proposal.md`](docs/pc_proposal.md)):
+  a PC hierarchy given momenta becomes one HRU.
+  - *Locality (exp6):* RHEL's weight update **is** PC's local error×activity
+    Hebbian rule (cosine `1.0` per layer), using the same weights forward and
+    backward — no weight transport (vs cosine `−0.24` for backprop with
+    randomized feedback).
+  - *Energy-based unsupervised learning (exp5):* HPC learns a generative
+    model with no labels — reconstruction MSE `0.182` (random) → `0.015`
+    (trained) — and the local RHEL rule matches global BPTT step-for-step.
+  - *Supervised (exp4):* HPC RHEL `95.8%` vs BPTT `96.3%`.
 
 ## Data availability
 

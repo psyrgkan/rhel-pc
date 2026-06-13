@@ -101,6 +101,51 @@ loss magnitudes differ from the HSSM, so the HSSM's γ=1e4 over-scales and
 adds linearization error — re-grid per model, exactly the App. A.5.4
 caveat).
 
+## Experiment 6 — locality / no weight transport (benefit #1)
+
+`experiments/exp6_locality.py`, figure `figures/exp6_locality.png`.
+
+```
+per-layer cosine(local Hebbian update, autodiff RHEL grad) = 1.0   (max rel diff ~1e-8)
+backprop with random feedback weights: gradient cosine = -0.24
+```
+
+The first line shows the RHEL update at each generative weight equals the
+local `error × presynaptic-activity` contrast across the two echo
+trajectories — fully local, same weights forward and backward. The second
+line is a feedback-alignment control: backprop's gradient *depends* on
+transported weights, whereas RHEL's echo dynamics reuse the forward weights
+by construction, so there is nothing to transport.
+
+## Experiment 5 — energy-based unsupervised learning (benefit #2)
+
+`experiments/exp5_unsupervised.py`, figure `figures/exp5_unsupervised.png`.
+Unsupervised autoencoding of clean structured waveforms (no labels).
+
+```
+held-out reconstruction MSE:  random HPC 0.182  ->  trained 0.015   (predict-mean 0.368)
+RHEL vs BPTT reconstruction curves: identical step-for-step
+linear probe (frequency task): HPC 100% (even random), dissipative-PC / raw ~25% (chance)
+```
+
+Generative learning genuinely happens (12× below a random reservoir) and the
+local RHEL rule matches global BPTT. Honest caveats: conservative HPC needs a
+weak leak or it collapses to predicting the mean (non-relaxational inference
+is a real limitation, consistent with App. A.4.4); and on this
+frequency-coded task a linear probe saturates even for a random reservoir, so
+reconstruction — not the probe — is the meaningful learning signal.
+
+## Figures produced
+
+| File | Shows |
+|---|---|
+| `concept_schematic.png` | Fig. 1: HPC mechanism (hierarchy + 3-pass RHEL, local update) |
+| `exp1_toy_oscillators.png` | Thm 3.1: RHEL == adjoint state method |
+| `exp2_gradient_comparison.png` | Thm 3.2/3.3 + underflow vs γ |
+| `exp4_hpc_prototype.png` | HPC supervised: RHEL == BPTT, trains to 96 % |
+| `exp5_unsupervised.png` | Benefit #2: unsupervised generative learning, RHEL==BPTT |
+| `exp6_locality.png` | Benefit #1: RHEL == local PC Hebbian rule, no weight transport |
+
 ## Deviations from the paper / official code
 
 These do not affect the reproduced theoretical claims; they trade some
