@@ -142,6 +142,14 @@ contrastive estimator. We show the symmetric two-echo (centered) estimator
 has $O(\eps^2)$ bias versus $O(\eps)$ for the one-sided
 Equilibrium-Propagation estimator, and identify the finite-precision sweet
 spot.
+\item \textbf{The conservative--dissipative bracket (\S\ref{sec:continual}--\ref{sec:dissipative}).}
+We test whether the finite-$\eps$ regime confers a behavioral advantage
+(continual learning) and find none: HPC is BPTT-exact by construction. We then
+build its dissipative counterpart---a temporal PC with per-timestep
+equilibrium inference and a fully local rule---which gains equilibrium
+inference but, honestly, neither matches RHEL's exactness nor beats BPTT.
+Together they bracket the open problem of exact, local, temporal credit
+assignment under dissipation.
 \end{itemize}
 We are explicit about the cost of conservativity: non-dissipative inference
 cannot forget, which constrains both tasks and the choice of leak
@@ -433,6 +441,53 @@ where a genuine PC advantage must originate: in the \emph{equilibrium}
 inference of dissipative PC, which conservative HPC forgoes for exactness.
 Recovering that advantage without sacrificing locality---e.g.\ via controlled
 dissipation---is the clearest direction this work opens (\S\ref{sec:limitations}).
+
+\subsection{Toward dissipative temporal PC: a local rule with equilibrium inference}
+\label{sec:dissipative}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{exp9_dissipative_pc.png}
+\caption{\textbf{Dissipative temporal predictive coding.} Per-timestep
+equilibrium inference (latents relax to a local free-energy minimum each step;
+learned transition weights carry memory). \emph{(A)} The inference residual
+$\|\grad F\|$ decays with relaxation steps: controlled dissipation reaches the
+PC equilibrium. \emph{(B)} A local rule needs that equilibrium: the naive
+damped-\emph{momentum} design (keep HPC's oscillatory dynamics, add friction,
+contrast the non-settling trajectory) yields a gradient barely correlated with
+the truth, whereas per-step \emph{relaxation} EqProp attains cosine $0.99$.
+\emph{(C)} The local dissipative rule trains well above chance but does not
+beat BPTT through the same model (truncated cross-timestep credit).}
+\label{fig:dissipative}
+\end{figure}
+
+The negative result of \S\ref{sec:continual} localizes the missing
+ingredient: a genuine PC advantage needs \emph{equilibrium} inference, which
+conservative HPC forgoes. We therefore sketch its dissipative counterpart and
+report honestly how far it gets. The obstacle is sharp: introducing
+dissipation breaks the time-reversal symmetry RHEL relies on, and---we
+find---a naive port that keeps HPC's momentum dynamics with added friction and
+contrasts the resulting (non-settling) trajectory produces a learning signal
+almost uncorrelated with the gradient (Fig.~\ref{fig:dissipative}B, left).
+The reason is that Equilibrium Propagation is exact only at a fixed point,
+which a driven oscillatory system never reaches.
+
+This motivates \emph{per-timestep equilibrium inference}: at each step the
+latents relax (overdamped) to the minimum of a local free energy combining the
+current input with a temporal prediction from learned transition weights,
+where EqProp's contrastive Hebbian rule is exact and local; memory is carried
+by the transitions. Relaxation is the controlled dissipation
+(Fig.~\ref{fig:dissipative}A), and the resulting local update is a
+high-fidelity gradient proxy (cosine $0.99$ vs autodiff,
+Fig.~\ref{fig:dissipative}B, right). On a task whose classes differ only in
+temporal autocorrelation, this fully local, dissipative rule trains well above
+chance---but it does \emph{not} beat BPTT through the same model
+(Fig.~\ref{fig:dissipative}C): the per-step rule truncates credit across
+timesteps, and inference uses weight \emph{symmetry} ($\bW^{\!\top}$) so it
+also relaxes RHEL's transport-freedom. Closing the remaining gap---an exact,
+local, temporal credit-assignment rule for dissipative dynamics---is, to our
+knowledge, open; HPC and this dissipative model bracket it from the two sides
+(exact-but-conservative; local-and-dissipative-but-approximate).
 
 \section{Related work}
 \label{sec:related}

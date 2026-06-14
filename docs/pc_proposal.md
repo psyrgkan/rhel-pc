@@ -190,6 +190,7 @@ What a submission needs, and what already exists in this repo:
 | 4 | **Energy-based unsupervised learning**: reconstruction trained≪random, RHEL==BPTT | done (`exp5_unsupervised.png`) |
 | 5 | The ε knob: centered O(ε²) vs one-sided O(ε) bias + float32 sweet spot | done (`exp7_nudging_knob.png`) |
 | 6 | A "PC beats BPTT" result (continual learning) | built; **negative** (`exp8_continual.png`) |
+| 7 | Dissipative temporal PC (controlled dissipation, local) | built; trains, **does not beat BPTT** (`exp9_dissipative_pc.png`) |
 | 7 | Scaling table on standard benchmarks (sMNIST/sCIFAR, UEA, PPG) | needs data access |
 
 Figures 1–4 establish the core thesis ("HPC makes RHEL's credit assignment a

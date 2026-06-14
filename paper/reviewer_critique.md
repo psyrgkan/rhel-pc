@@ -43,6 +43,16 @@ exact) and the physical-plausibility thesis.
   on digital hardware. Without one of these, expect performance-focused
   reviewers to rate the empirical contribution as thin, however clean the
   theory and however honest the negative result.
+- **Status of remedy (a): attempted, partial.** §5.6 now builds the
+  dissipative counterpart (per-timestep equilibrium temporal PC, fully local).
+  It *trains* and uses a high-fidelity local gradient, but it does **not** beat
+  BPTT and is somewhat unstable. So the paper now brackets the open problem
+  from both sides (exact-but-conservative HPC; local-and-dissipative-but-
+  approximate temporal PC) without closing it. A reviewer will read this as
+  intellectually honest and a genuine contribution to *understanding* the
+  problem, but still not a performance win — the paper's case rests on the
+  mechanism and the plausibility thesis, and should say so plainly in the
+  abstract rather than letting a reviewer discover the absence of a win.
 
 ### B2. Synthetic-only evaluation
 Every experiment uses bespoke sinusoidal toy data. There is no standard

@@ -176,6 +176,30 @@ The library gained a `centered` flag on `make_hru`/`rhel_backward`
 (default `True` = RHEL) so the one-sided Equilibrium-Propagation estimator
 can be used for training; the default preserves all prior behavior and tests.
 
+## Experiment 9 — dissipative temporal PC (controlled dissipation)
+
+`experiments/exp9_dissipative_pc.py`, figure `figures/exp9_dissipative_pc.png`,
+model `rhel/temporal_pc.py`. The dissipative counterpart of HPC, attacking the
+exp8 open problem with per-timestep equilibrium inference + a local rule.
+
+```
+(A) controlled dissipation: inference residual ||grad F|| -> 0 as relaxation steps grow
+(B) local credit assignment fidelity (cosine vs autodiff):
+      naive damped-momentum design  ~0.1   (fails; non-settling trajectory)
+      per-step equilibrium (ours)    0.99   (high fidelity, local)
+(C) training (temporal-autocorrelation task, best test acc):
+      EqProp (local)  ~0.44     BPTT  ~0.57
+```
+
+Honest outcome: the fully local, dissipative temporal PC trains well above
+chance with a high-fidelity local gradient, but does not beat BPTT (truncated
+cross-timestep credit; inference uses weight symmetry W^T, relaxing RHEL's
+transport-freedom). Key insight: exact local credit assignment requires the
+dynamics to reach equilibrium — a driven oscillatory (momentum) system never
+does, which is why per-timestep relaxation is the right design. HPC (exact,
+conservative) and this model (local, dissipative, approximate) bracket the
+open problem.
+
 ## Figures produced
 
 | File | Shows |
@@ -188,6 +212,7 @@ can be used for training; the default preserves all prior behavior and tests.
 | `exp6_locality.png` | Benefit #1: RHEL == local PC Hebbian rule, no weight transport |
 | `exp7_nudging_knob.png` | Fig. 5: centered O(ε²) vs one-sided O(ε) bias; float32 sweet spot |
 | `exp8_continual.png` | Continual learning: finite-ε HPC matches BPTT within noise (negative result) |
+| `exp9_dissipative_pc.png` | Dissipative temporal PC: controlled dissipation, local rule, trains but does not beat BPTT |
 
 ## Deviations from the paper / official code
 
