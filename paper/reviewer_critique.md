@@ -24,18 +24,25 @@ substantially stronger empirical case. Below is what would move it.
 
 ### B1. No demonstrated advantage over backpropagation — the "so what?"
 The headline results show HPC *equals* BPTT (by design — RHEL is an exact BPTT
-proxy). The paper never exhibits a task, metric, or regime where HPC *beats*
-BPTT, or even where its locality/energy properties translate into a measurable
-win. A reviewer's first question is "why would I use this instead of BPTT?"
-and the paper's honest answer is "for hypothetical analog hardware" — which it
-does not build or simulate at the device level.
-- **Remedy.** Deliver at least one of: (a) a continual-learning / few-shot
-  result where the finite-ε (PC-equilibrium) regime beats BPTT — the
-  "prospective configuration" advantage the paper itself cites (Song et al.,
-  2024) but never tests; (b) a concrete energy/locality accounting on a
-  plausible analog substrate; or (c) a memory/throughput advantage on digital
-  hardware. Absent any of these, the contribution is "RHEL also works for PC,"
-  which is thin.
+proxy). A reviewer's first question is "why would I use this instead of BPTT?"
+**Status: tested, and the answer is currently "no advantage."** §5.5 now adds
+the obvious experiment — finite-ε one-sided HPC (the prospective-configuration
+regime) vs the ε→0 (BPTT) limit on continual learning — and reports a *negative
+result*: no robust retention gain, with large ε actively hurting. This is the
+honest and rigorous thing to do, and it directly addresses the "you never
+tested it" objection, but it does **not** resolve the deeper problem: the paper
+still has no task where HPC wins. The contribution must therefore rest entirely
+on the *credit-assignment properties* (local, energy-based, forward-only,
+exact) and the physical-plausibility thesis.
+- **Remaining remedy (to turn "no disadvantage" into a real win).** Deliver one
+  of: (a) a regime where *equilibrium/dissipative* PC beats BPTT and a
+  *controlled-dissipation* HPC inherits it while keeping locality — this is the
+  paper's own stated open problem and would be the strongest result; (b) a
+  concrete energy/locality accounting on a plausible analog substrate (ideally
+  a device-level simulation, not a hand-wave); or (c) a memory/throughput win
+  on digital hardware. Without one of these, expect performance-focused
+  reviewers to rate the empirical contribution as thin, however clean the
+  theory and however honest the negative result.
 
 ### B2. Synthetic-only evaluation
 Every experiment uses bespoke sinusoidal toy data. There is no standard

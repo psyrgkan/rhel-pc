@@ -102,15 +102,22 @@ def hru_scan(spec, params, phi0, pi0, u_seq, nudge_seq=None, eps=0.0):
     return (phiK, piK), traj
 
 
-def make_hru(spec: HamiltonianSpec, state_dim: int, learning_algorithm: str = "BPTT"):
+def make_hru(spec: HamiltonianSpec, state_dim: int, learning_algorithm: str = "BPTT",
+             centered: bool = True):
     """Build `apply(params, u_seq, eps) -> phi trajectory` for an HRU.
 
     With learning_algorithm == "BPTT", gradients are computed by plain
     reverse-mode AD through the leapfrog scan. With "RHEL", a custom VJP
     implements Alg. 1: the backward pass re-runs the same forward dynamics
-    twice from the momentum-flipped final state (echo passes) with +eps and
-    -eps nudging, and reads gradients out of the trajectory contrast. The
-    initial state is fixed to Phi = 0 as in the paper's HSSMs.
+    from the momentum-flipped final state (echo passes) with nudging, and
+    reads gradients out of the trajectory contrast. The initial state is
+    fixed to Phi = 0 as in the paper's HSSMs.
+
+    centered=True uses the symmetric +/-eps two-echo difference (RHEL, O(eps^2)
+    bias, exact BPTT proxy). centered=False uses the one-sided free + single
+    nudged echo (the Equilibrium-Propagation estimator, O(eps) bias): at finite
+    eps this evaluates the update at target-nudged activities, the
+    "prospective configuration" regime that departs from BPTT.
     """
 
     def forward(params, u_seq):
@@ -136,18 +143,23 @@ def make_hru(spec: HamiltonianSpec, state_dim: int, learning_algorithm: str = "B
 
     def apply_bwd(res, g_seq):
         params, u_seq, eps, phiK, piK = res
-        grads_p, grads_u, _ = rhel_backward(spec, params, u_seq, eps, phiK, piK, g_seq)
+        grads_p, grads_u, _ = rhel_backward(spec, params, u_seq, eps, phiK, piK, g_seq,
+                                            centered=centered)
         return grads_p, grads_u, jnp.zeros(())
 
     apply.defvjp(apply_fwd, apply_bwd)
     return apply
 
 
-def rhel_backward(spec, params, u_seq, eps, phiK, piK, g_seq, return_per_step=False):
-    """Alg. 1: two echo passes and the contrastive gradient estimator.
+def rhel_backward(spec, params, u_seq, eps, phiK, piK, g_seq, return_per_step=False,
+                  centered=True):
+    """Alg. 1: echo passes and the contrastive gradient estimator.
 
     g_seq[k] = dL/dphi_{k+1} (upstream gradients w.r.t. the position
     trajectory emitted by the forward pass), forward time order.
+
+    centered=True: symmetric +/-eps difference (RHEL). centered=False:
+    one-sided free + nudged difference (Equilibrium Propagation).
 
     Returns (parameter grads, input-sequence grads, initial-state grads).
     """
@@ -170,8 +182,10 @@ def rhel_backward(spec, params, u_seq, eps, phiK, piK, g_seq, return_per_step=Fa
         phis, pis, phi13s, pi_pres, pi23s = traj
         return (phiE, piE), (phi13s, pi_pres, pi23s)
 
+    # +eps echo always; the second echo is -eps (centered) or 0 (one-sided).
     (state_p, halves_p) = one_echo(+1.0)
-    (state_m, halves_m) = one_echo(-1.0)
+    (state_m, halves_m) = one_echo(-1.0 if centered else 0.0)
+    denom = (2.0 * eps) if centered else eps
 
     grad_H = jax.grad(spec.half_step_hamiltonian, argnums=(3, 4))
 
@@ -184,22 +198,19 @@ def rhel_backward(spec, params, u_seq, eps, phiK, piK, g_seq, return_per_step=Fa
     gu_p, gp_p = per_step(halves_p)
     gu_m, gp_m = per_step(halves_m)
 
-    # Delta_theta = -1/(2 eps) sum_k [grad H_1/2(+eps) - grad H_1/2(-eps)]
     grads_params = jax.tree.map(
-        lambda a, b: -(jnp.sum(a, axis=0) - jnp.sum(b, axis=0)) / (2 * eps), gp_p, gp_m
+        lambda a, b: -(jnp.sum(a, axis=0) - jnp.sum(b, axis=0)) / denom, gp_p, gp_m
     )
-    # Delta_u, per time step, mapped back to forward time order.
-    grads_u = -(gu_p - gu_m) / (2 * eps)
+    grads_u = -(gu_p - gu_m) / denom
     grads_u = grads_u[::-1]
 
-    # lambda_K = dL/dPhi_0 read from the echo end states (Sigma_x contrast).
     phiE_p, piE_p = state_p
     phiE_m, piE_m = state_m
     grad_x0 = (
-        (piE_p - piE_m) / (2 * eps),  # dL/dphi_0
-        (phiE_p - phiE_m) / (2 * eps),  # dL/dpi_0
+        (piE_p - piE_m) / denom,  # dL/dphi_0
+        (phiE_p - phiE_m) / denom,  # dL/dpi_0
     )
     if return_per_step:
-        per_step_theta = jax.tree.map(lambda a, b: -(a - b) / (2 * eps), gp_p, gp_m)
+        per_step_theta = jax.tree.map(lambda a, b: -(a - b) / denom, gp_p, gp_m)
         return grads_params, grads_u, grad_x0, per_step_theta
     return grads_params, grads_u, grad_x0

@@ -399,6 +399,41 @@ unreachable because the $\eps$-perturbation underflows
 near $\eps\!\approx\!0.1$ (Fig.~\ref{fig:knob}B)---validating the nudging
 strength used in all training runs.
 
+\subsection{Does the finite-$\eps$ regime beat backpropagation? A negative result}
+\label{sec:continual}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{exp8_continual.png}
+\caption{\textbf{No behavioral advantage over BPTT on continual learning.}
+Domain-incremental sequence classification ($6$ tasks, shared model, $6$
+task-sequences). \emph{(A)} Average final accuracy of one-sided HPC versus
+nudge strength $\eps$; the $\eps\!\to\!0$ limit is BPTT (blue band: $\pm1$
+s.d.). \emph{(B)} Forgetting. Small $\eps$ tracks BPTT within noise; large
+$\eps$ degrades as the gradient bias dominates. The best non-zero $\eps$ wins
+only $2/6$ task-sequences and loses on average.}
+\label{fig:continual}
+\end{figure}
+
+A natural hypothesis is that the finite-$\eps$ regime---which updates weights
+at \emph{target-nudged} activities, echoing predictive coding's ``prospective
+configuration'' \citep{prospective}---should reduce catastrophic forgetting
+relative to backpropagation. We test this directly with the one-sided
+estimator, whose finite-$\eps$ bias is exactly such a prospective term, on a
+domain-incremental continual-learning task (Fig.~\ref{fig:continual}), in a
+fully matched comparison: same architecture, same data, only $\eps$ varies,
+with $\eps\!\to\!0$ recovering BPTT. We find \emph{no robust advantage}.
+Across six task-sequences, the best non-zero $\eps$ matches BPTT within seed
+noise (and loses slightly on average), while large $\eps$ degrades retention
+as the $O(\eps)$ gradient bias overwhelms any prospective effect. We report
+this negative result deliberately: it confirms that HPC's value lies in
+\emph{how} it assigns credit---locally, energy-based, forward-only, and
+exactly equal to BPTT---not in superior task performance. It also localizes
+where a genuine PC advantage must originate: in the \emph{equilibrium}
+inference of dissipative PC, which conservative HPC forgoes for exactness.
+Recovering that advantage without sacrificing locality---e.g.\ via controlled
+dissipation---is the clearest direction this work opens (\S\ref{sec:limitations}).
+
 \section{Related work}
 \label{sec:related}
 HPC sits at the intersection of three lines. \emph{Predictive coding}
@@ -436,9 +471,13 @@ features. \textbf{Scope.} Like RHEL, HPC is forward-only but not yet online
 (inputs are replayed in reverse), still requires the explicit local gradient
 $\grad_{\bW}F$ (benign for PC, but not fully ``black-box''), and matches
 rather than beats BPTT on digital hardware; its promised advantage is for
-analog physical substrates. We have not demonstrated a behavioral advantage
-over BPTT (e.g.\ continual learning); doing so requires the finite-$\eps$
-regime where HPC deliberately departs from BPTT and is left to future work.
+analog physical substrates. We tested the most natural route to a behavioral
+advantage---the prospective-configuration regime at finite $\eps$---and found
+none (\S\ref{sec:continual}): HPC is engineered to be BPTT-exact, so the
+accessible departures are either negligible or harmful. A genuine advantage
+would have to come from \emph{equilibrium} (dissipative) inference, which
+conservative HPC sacrifices for exactness; combining the two via controlled
+dissipation, while preserving locality, is the central open problem.
 
 \section{Conclusion}
 \label{sec:conclusion}

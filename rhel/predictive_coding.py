@@ -89,12 +89,13 @@ class HPCClassifier:
     """
 
     def __init__(self, levels, width, delta=0.1, alpha=0.1,
-                 learning_algorithm="BPTT", epsilon=0.0):
+                 learning_algorithm="BPTT", epsilon=0.0, centered=True):
         self.levels, self.width = levels, width
         self.delta = delta
         self.epsilon = epsilon
         self.spec = make_hpc_spec(levels, width, delta, alpha)
-        self.hru_apply = make_hru(self.spec, levels * width, learning_algorithm)
+        self.hru_apply = make_hru(self.spec, levels * width, learning_algorithm,
+                                  centered=centered)
 
     def latents(self, params, u_seq):
         phis = self.hru_apply(params["pc"], u_seq, self.epsilon)  # (K, L*width)

@@ -150,6 +150,32 @@ justification for flipping the momenta both ways. In float32 the ε→0 limit is
 unreachable (underflow), so there is a sweet spot; it lands near ε≈0.1, the
 value used throughout, validating the hyperparameter choice (App. A.5.4).
 
+## Experiment 8 — continual learning: a negative result
+
+`experiments/exp8_continual.py`, figure `figures/exp8_continual.png`.
+
+```
+domain-incremental, 6 tasks, 6 task-sequences, avg final accuracy:
+  BPTT (eps->0)   94.7 +/- 1.2 %
+  one-sided eps=0.1  93.7 +/- 2.6 %
+  one-sided eps=0.3  94.2 +/- 1.6 %   (best non-zero eps; loses on avg, wins 2/6)
+  one-sided eps=0.6  87.3 +/- 6.9 %
+  one-sided eps=1.0  73.3 +/- 7.7 %
+```
+
+We tested the hypothesis that the finite-ε one-sided regime (the
+"prospective configuration" estimator) would reduce forgetting versus the
+ε→0 (BPTT) limit. It does not: small ε matches BPTT within seed noise, large
+ε degrades as the O(ε) gradient bias dominates. This is reported honestly in
+the paper (§5.5) as a negative result that sharpens the contribution — HPC's
+value is in *how* it assigns credit (local, energy-based, forward-only,
+BPTT-exact), not in beating BPTT. A genuine behavioral advantage would
+require equilibrium/dissipative inference, which conservative HPC forgoes.
+
+The library gained a `centered` flag on `make_hru`/`rhel_backward`
+(default `True` = RHEL) so the one-sided Equilibrium-Propagation estimator
+can be used for training; the default preserves all prior behavior and tests.
+
 ## Figures produced
 
 | File | Shows |
@@ -161,6 +187,7 @@ value used throughout, validating the hyperparameter choice (App. A.5.4).
 | `exp5_unsupervised.png` | Benefit #2: unsupervised generative learning, RHEL==BPTT |
 | `exp6_locality.png` | Benefit #1: RHEL == local PC Hebbian rule, no weight transport |
 | `exp7_nudging_knob.png` | Fig. 5: centered O(ε²) vs one-sided O(ε) bias; float32 sweet spot |
+| `exp8_continual.png` | Continual learning: finite-ε HPC matches BPTT within noise (negative result) |
 
 ## Deviations from the paper / official code
 
